@@ -92,7 +92,10 @@ void ConfigParser::parseServerBlock()
         else if (tokens[idx] == "server_name")
         {
             idx++;
-            server.serverNames.push_back(tokens[idx++]);
+            while (tokens[idx] != ";")
+            {
+                server.serverNames.push_back(tokens[idx++]);
+            }
             expect(";");
         }
         else if (tokens[idx] == "error_page")
@@ -114,7 +117,7 @@ void ConfigParser::parseServerBlock()
             idx++;
             parseLocationBlock(server);
         }
-        else 
+        else
         {
             throw std::runtime_error("Error: Unknown directive " + tokens[idx]);
         }
