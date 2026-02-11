@@ -14,6 +14,15 @@ class Socket
         int                 sockfd;
         struct sockaddr_in  addr;
         int                 port;
+    public:
+        Socket();
+        ~Socket();
+        void    create();
+        void    bind(int port);
+        void    listen();
+        int     accept();
+        int     getFd() const;
+        void    close();
 };
 
 #endif
