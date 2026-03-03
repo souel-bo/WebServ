@@ -1,4 +1,8 @@
-#include "Event.hpp"
+#include "../includes/Event.hpp"
+#include <iostream>
+#include <sys/socket.h>
+#include <unistd.h>
+#include <fcntl.h>
 
 Event::Event() {}
 
@@ -11,31 +15,53 @@ void Event::run(SocketManager& manager, EpollManager& epollManager) {
               << manager.getSockets()[i]->getPort() 
               << std::endl;
     }
+    
     while (true) {
-        bool flag = false;
         std::vector<int> readyFds = epollManager.wait(-1);
-        int fd;
+        
         for (size_t i = 0; i < readyFds.size(); ++i) {
-            fd = readyFds[i];
-            if (fd == manager.getSockets()[i]->getFd()){
-                flag = true;
-                break;
+            int fd = readyFds[i];
+            bool isListeningSocket = false;
+            for (size_t j = 0; j < manager.getSockets().size(); ++j) {
+                if (fd == manager.getSockets()[j]->getFd()){
+                    isListeningSocket = true;
+                    break;
+                }
             }
-        }
-        if (flag){
-            std::cout << "New connection on one of the listening sockets!" << std::endl;
-            if ((_clientFd = accept(fd, NULL, NULL)) == -1) {
-                std::cerr << "Failed to accept new connection" << std::endl;
-            } else {
-                int flags = fcntl(_clientFd, F_GETFL, 0);
-                fcntl(_clientFd, F_SETFL, flags | O_NONBLOCK);
-                epollManager.ctrl(_clientFd, EPOLLIN, EPOLL_CTL_ADD);
-                std::cout << "Accepted new connection with fd: " << _clientFd << std::endl;
+
+            if (isListeningSocket){
+                std::cout << "New connection on one of the listening sockets!" << std::endl;
+                if ((_clientFd = accept(fd, NULL, NULL)) == -1) {
+                    std::cerr << "Failed to accept new connection" << std::endl;
+                } else {
+                    int flags = fcntl(_clientFd, F_GETFL, 0);
+                    fcntl(_clientFd, F_SETFL, flags | O_NONBLOCK);
+                    epollManager.ctrl(_clientFd, EPOLLIN, EPOLL_CTL_ADD);
+                    std::cout << "Accepted new connection with fd: " << _clientFd << std::endl;
+                }
             }
-        }
-        else {
-            std::cout << "Data ready to read on client fd: " << fd << std::endl;
-            
+            else
+            {
+                std::cout << "Data ready to read on client fd: " << fd << std::endl;
+                char buffer[4096];
+                int bytesRead = recv(fd, buffer, sizeof(buffer), 0);
+                
+                if (bytesRead > 0)
+                {
+                    std::string rawData(buffer, bytesRead);
+                    requests[fd].parse(rawData);
+                    
+                    if (requests[fd].getState() == Request_Finished)
+                    {
+                        std::cout << "Successfully parsed request: " << requests[fd].getMethod() << " " << requests[fd].getPath() << requests[fd].getBody() << requests[fd].getVersion() << std::endl;
+                    }
+                } else
+                {
+                    epollManager.ctrl(fd, 0, EPOLL_CTL_DEL);
+                    close(fd);
+                    requests.erase(fd); 
+                }
+            }
         }
     }
 }
