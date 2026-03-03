@@ -31,7 +31,7 @@ void SocketManager::generateListeningSockets(const std::vector<ServerConfig>& se
         sock->createSocket();
         sock->setReuseAddr();
         sock->bindSocket();
-        sock->startListening(128);
+        sock->startListening(1024);
         sock->setNonBlocking();
         addSocket(sock);
     }
