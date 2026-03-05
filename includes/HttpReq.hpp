@@ -17,7 +17,7 @@ enum RequestParseState
 
 class HttpRequest
 {
-    private:
+    protected:
         std::string                         method;  // GET, POST, or DELETE 
         std::string                         path;    // Requested URI
         std::string                         version; // HTTP protocol version

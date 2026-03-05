@@ -3,6 +3,9 @@
 #include <sys/socket.h>
 #include <unistd.h>
 #include <fcntl.h>
+#include "../includes/HttpReq.hpp"
+#include "../includes/HttpResponse.hpp"
+#include "../includes/Router.hpp"
 
 Event::Event() {}
 
@@ -54,6 +57,8 @@ void Event::run(SocketManager& manager, EpollManager& epollManager) {
                     if (requests[fd].getState() == Request_Finished)
                     {
                         std::cout << "Successfully parsed request: " << requests[fd].getMethod() << " " << requests[fd].getPath() << requests[fd].getBody() << requests[fd].getVersion() << std::endl;
+                        Router routeResult;
+
                     }
                 } else
                 {

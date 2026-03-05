@@ -13,7 +13,7 @@ struct RouteResult {
 };
 
 class Router {
-    private:
+    protected:
         static std::string joinPaths(const std::string& path1, const std::string& path2);
         static bool        isDir(const std::string& path);
         static bool        fileExists(const std::string& path);
@@ -21,7 +21,6 @@ class Router {
     public:
         Router();
         ~Router();
-
         static RouteResult resolve(const HttpRequest& req, const ServerConfig& config);
 };
 

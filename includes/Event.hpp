@@ -13,6 +13,7 @@ class Event{
     private:
         int _clientFd;
         std::map<int, HttpRequest> requests;
+        
     public:
         Event();
         ~Event();
