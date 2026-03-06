@@ -7,6 +7,9 @@
 #include <string>
 #include <fcntl.h>
 #include <unistd.h>
+#include <sys/stat.h>
+#include <sys/types.h>
+#include <sys/sendfile.h>
 
 class HttpResponse : public HttpRequest, public Router {
     private:
@@ -17,15 +20,17 @@ class HttpResponse : public HttpRequest, public Router {
         std::string content_length;
         std::string connection;
         int status_code;
+        off_t fileSize;
     public :
         void generateResponse(const HttpRequest& req,  RouteResult& routeResult);
-        void setStatusLine(std::string &path);
+        void setStatusLine(int code);
         void setResponseHeaders(const std::map<std::string, std::string>& headers);
         void setResponseBody(const std::string& body);
         const std::string& getStatusLine() const;
         const std::map<std::string, std::string>& getResponseHeaders() const;
         std::string &find_requested_file(std::string& path);
         const std::string& getResponseBody() const;
+        void decideStatus(const HttpRequest& req, const std::string& path, bool serverError);
 };
 
 #endif

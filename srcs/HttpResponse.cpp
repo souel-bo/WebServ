@@ -1,20 +1,5 @@
 #include "HttpResponse.hpp"
 
-void HttpResponse::setStatusLine(std::string &path)
-{
-    int fd = open(path.c_str(), O_RDONLY);
-    if (fd == -1)
-    {
-        status_line = "HTTP/1.1 404 Not Found\r\n";
-        status_code = 404;
-    }
-    else
-    {
-        status_line = "HTTP/1.1 200 OK\r\n";
-        status_code = 200;
-    }
-}
-
 const std::string& HttpResponse::getStatusLine() const
 {
     return status_line;
@@ -25,14 +10,87 @@ void HttpResponse::setResponseHeaders(const std::map<std::string, std::string>& 
     response_headers = headers;
 }
 
+void HttpResponse::setStatusLine(int code)
+{
+    status_code = code;
+
+    switch (code)
+    {
+        case 200:
+            status_line = "HTTP/1.1 200 OK\r\n";
+            break;
+        case 301:
+            status_line = "HTTP/1.1 301 Moved Permanently\r\n";
+            break;
+        case 302:
+            status_line = "HTTP/1.1 302 Found\r\n";
+            break;
+        case 400:
+            status_line = "HTTP/1.1 400 Bad Request\r\n";
+            break;
+        case 403:
+            status_line = "HTTP/1.1 403 Forbidden\r\n";
+            break;
+        case 404:
+            status_line = "HTTP/1.1 404 Not Found\r\n";
+            break;
+        case 405:
+            status_line = "HTTP/1.1 405 Method Not Allowed\r\n";
+            break;
+        case 500:
+            status_line = "HTTP/1.1 500 Internal Server Error\r\n";
+            break;
+        case 501:
+            status_line = "HTTP/1.1 501 Not Implemented\r\n";
+            break;
+        case 503:
+            status_line = "HTTP/1.1 503 Service Unavailable\r\n";
+            break;
+        default:
+            status_line = "HTTP/1.1 500 Internal Server Error\r\n";
+            status_code = 500;
+            break;
+    }
+}
+
+void HttpResponse::decideStatus(const HttpRequest& req, const std::string& path, bool serverError)
+{
+    int code;
+    struct stat fileStat;
+    if (req.getMethod() != "GET" && req.getMethod() != "POST" && req.getMethod() != "DELETE")
+        code = 405;
+    else
+    {
+        if (stat(path.c_str(), &fileStat) != 0)
+            code = 404;
+        else if (!S_ISREG(fileStat.st_mode))
+            code = 403;
+        else
+        {
+            int fd = open(path.c_str(), O_RDONLY);
+            if (fd == -1)
+                code = 403;
+            else
+            {
+                if (serverError)
+                    code = 500;
+                else
+                    code = 200;
+                close(fd);
+            }
+        }
+    }
+    setStatusLine(code);
+    fileSize = fileStat.st_size;
+}
+
+
+
 void HttpResponse::generateResponse(const HttpRequest& req, RouteResult& routeResult)
 {
-    // │
-    // ├─ 1. Determine if the requested file exists
-    // │      └─ Set status code (200, 404, etc.)
-    // │
-    // ├─ 2. Set the status line
-    // │      └─ Example: "HTTP/1.1 200 OK\r\n"
+    decideStatus(req, routeResult.finalPath, !routeResult.isAllowed);
+    if (fileSize < 1024 *1024)
+        setResponseBody(find_requested_file(routeResult.finalPath));
     // │
     // ├─ 3. Decide transfer method
     // │      ├─ Small file → Content-Length
