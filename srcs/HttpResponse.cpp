@@ -1,8 +1,15 @@
 #include "HttpResponse.hpp"
+#include "HttpReq.hpp"
+#include "Router.hpp"
 #include <string>
 #include <sstream>
 #include <fcntl.h>
 #include <unistd.h>
+#include <sys/stat.h>
+#include <iostream>
+#include <fstream>
+#include <ctime>
+
 const std::string& HttpResponse::getStatusLine() const
 {
     return status_line;
@@ -159,4 +166,66 @@ void HttpResponse::generateResponse(const HttpRequest& req, RouteResult& routeRe
     // └─ 6. Response is ready to send
     //        ├─ Small file → send in one go
     //        └─ Large file → send in chunks from file
+}
+
+std::string handleDelete(const RouteResult& route)
+{
+    if (!route.isAllowed)
+    {
+        return "HTTP/1.1 405 Method Not Allowed\r\nContent-Length: 0\r\nConnection: keep-alive\r\n\r\n";
+    }
+    if (route.isDirectory)
+    {
+        return "HTTP/1.1 403 Forbidden\r\nContent-Length: 0\r\nConnection: keep-alive\r\n\r\n";
+    }
+    if (access(route.finalPath.c_str(), F_OK) != 0)
+    {
+        return "HTTP/1.1 404 Not Found\r\nContent-Length: 0\r\nConnection: keep-alive\r\n\r\n";
+    }
+    if (access(route.finalPath.c_str(), W_OK) != 0) 
+    {
+        return "HTTP/1.1 403 Forbidden\r\nContent-Length: 0\r\nConnection: keep-alive\r\n\r\n";
+    }
+    if (unlink(route.finalPath.c_str()) == 0)
+    {
+        std::cout << "[DELETE] Successfully removed: " << route.finalPath << std::endl;
+        return "HTTP/1.1 204 No Content\r\nConnection: keep-alive\r\n\r\n";
+    } else
+    {
+        return "HTTP/1.1 500 Internal Server Error\r\nContent-Length: 0\r\nConnection: keep-alive\r\n\r\n";
+    }
+}
+
+std::string handlePost(const HttpRequest& req, const RouteResult& route)
+{
+    if (!route.isAllowed)
+    {
+        return "HTTP/1.1 405 Method Not Allowed\r\nContent-Length: 0\r\nConnection: keep-alive\r\n\r\n";
+    }
+    if (req.getBody().length() > route.location.maxBodySize)
+    {
+        return "HTTP/1.1 413 Payload Too Large\r\nContent-Length: 0\r\nConnection: keep-alive\r\n\r\n";
+    }
+    std::string targetPath = route.finalPath;
+    struct stat s;
+    if (stat(targetPath.c_str(), &s) == 0 && S_ISDIR(s.st_mode))
+    {
+        if (targetPath[targetPath.length() - 1] != '/')
+        {
+            targetPath += "/";
+        }
+        std::ostringstream filename;
+        filename << "upload_" << time(NULL) << ".bin";
+        targetPath += filename.str();
+    }
+    std::ofstream outFile(targetPath.c_str(), std::ios::binary);
+    if (!outFile.is_open())
+    {
+        std::cerr << "[POST] Error: Could not open " << targetPath << " for writing. Check folder permissions." << std::endl;
+        return "HTTP/1.1 500 Internal Server Error\r\nContent-Length: 0\r\nConnection: keep-alive\r\n\r\n";
+    }
+    outFile.write(req.getBody().data(), req.getBody().length());
+    outFile.close();
+    std::cout << "[POST] Successfully created file: " << targetPath << " (" << req.getBody().length() << " bytes)" << std::endl;
+    return "HTTP/1.1 201 Created\r\nContent-Length: 0\r\nConnection: keep-alive\r\n\r\n";
 }
