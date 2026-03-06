@@ -24,8 +24,8 @@ class HttpResponse : public HttpRequest, public Router {
     public :
         void generateResponse(const HttpRequest& req,  RouteResult& routeResult);
         void setStatusLine(int code);
-        void setResponseHeaders(const std::map<std::string, std::string>& headers);
-        void setResponseBody(const std::string& body);
+        void setResponseHeaders(std::string path);
+        void setResponseBody(std::string path);
         const std::string& getStatusLine() const;
         const std::map<std::string, std::string>& getResponseHeaders() const;
         std::string &find_requested_file(std::string& path);

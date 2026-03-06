@@ -1,13 +1,21 @@
 #include "HttpResponse.hpp"
-
+#include <string>
+#include <sstream>
+#include <fcntl.h>
+#include <unistd.h>
 const std::string& HttpResponse::getStatusLine() const
 {
     return status_line;
 }
 
-void HttpResponse::setResponseHeaders(const std::map<std::string, std::string>& headers)
+const std::string& HttpResponse::getResponseBody() const
 {
-    response_headers = headers;
+    return response_body;
+}
+
+const std::map<std::string, std::string>& HttpResponse::getResponseHeaders() const
+{
+    return response_headers;
 }
 
 void HttpResponse::setStatusLine(int code)
@@ -76,8 +84,8 @@ void HttpResponse::decideStatus(const HttpRequest& req, const std::string& path,
                     code = 500;
                 else
                     code = 200;
-                close(fd);
             }
+            close(fd);
         }
     }
     setStatusLine(code);
@@ -85,17 +93,58 @@ void HttpResponse::decideStatus(const HttpRequest& req, const std::string& path,
 }
 
 
+void HttpResponse::setResponseBody(std::string path)
+{
+    int fd = open(path.c_str(), O_RDONLY);
+    if (fd == -1)
+    {
+        response_body = "Error opening file";
+        return;
+    }
+    char buffer[4096];
+    ssize_t bytesRead;
+    while ((bytesRead = read(fd, buffer, sizeof(buffer))) > 0)
+        response_body.append(buffer, bytesRead);
+    std::ostringstream oss;
+    oss << response_body.size();
+    content_length = oss.str();
+    close(fd);
+}
+
+void HttpResponse::setResponseHeaders(std::string path)
+{
+    std::string contentType = "application/octet-stream";
+    size_t dotPos = path.find_last_of('.');
+    if (dotPos != std::string::npos)
+    {
+        std::string extension = path.substr(dotPos + 1);
+        if (extension == "html")
+            contentType = "text/html";
+        else if (extension == "css")
+            contentType = "text/css";
+        else if (extension == "js")
+            contentType = "application/javascript";
+        else if (extension == "jpg" || extension == "jpeg")
+            contentType = "image/jpeg";
+        else if (extension == "png")
+            contentType = "image/png";
+        else if (extension == "gif")
+            contentType = "image/gif";
+    }
+    response_headers["Content-Type"] = contentType;
+    response_headers["Content-Length"] = content_length;
+    response_headers["Connection"] = "close";
+    response_headers["Server"] = "webserv";
+}
 
 void HttpResponse::generateResponse(const HttpRequest& req, RouteResult& routeResult)
 {
     decideStatus(req, routeResult.finalPath, !routeResult.isAllowed);
-    if (fileSize < 1024 *1024)
-        setResponseBody(find_requested_file(routeResult.finalPath));
-    // │
-    // ├─ 3. Decide transfer method
-    // │      ├─ Small file → Content-Length
-    // │      └─ Large file / streaming → Chunked Transfer-Encoding
-    // │
+    if (fileSize < 1024 *1024){
+        setResponseBody(routeResult.finalPath);
+        setResponseHeaders(routeResult.finalPath);
+    }
+    
     // ├─ 4. Set headers
     // │      ├─ Content-Type (based on file extension)
     // │      ├─ Content-Length (if small file)
