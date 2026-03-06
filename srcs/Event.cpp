@@ -6,6 +6,8 @@
 #include "../includes/HttpReq.hpp"
 #include "../includes/HttpResponse.hpp"
 #include "../includes/Router.hpp"
+#include "../includes/AutoIndex.hpp"
+
 
 Event::Event() {}
 
@@ -73,6 +75,8 @@ void Event::run(SocketManager& manager, EpollManager& epollManager) {
                         Router routeResult;
                         size_t index = clientServerIndex[fd];
                         RouteResult result = routeResult.resolve(requests[fd],*manager.getSockets()[index]->getServer());
+                        AutoIndex autoIndex;
+                        autoIndex.generate(result.finalPath, requests[fd].getPath());
                         std::cout << "server root: " << manager.getSockets()[index]->getServer()->root << std::endl;
                         std::cout << "final path: " << result.finalPath << std::endl;
                         std::cout << "server port: " << manager.getSockets()[index]->getPort() << std::endl;
@@ -81,7 +85,7 @@ void Event::run(SocketManager& manager, EpollManager& epollManager) {
                         std::cout << "Erorr code: " << requests[fd].getErrorCode() << std::endl;
                         std::cout << "==================================" << std::endl;
                         HttpResponse response;
-                        response.setStatusLine(result.finalPath);
+                        response.generateResponse(requests[fd], result);
                         std::string responseStr = response.getStatusLine();
                         std::cout << "Response to be sent:\n" << responseStr;
                     }
