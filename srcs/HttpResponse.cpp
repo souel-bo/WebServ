@@ -146,6 +146,21 @@ void HttpResponse::setResponseHeaders(std::string path)
 
 void HttpResponse::generateResponse(const HttpRequest& req, RouteResult& routeResult)
 {
+    //TO DO LIST
+    // ├─ 1. Determine the status code based on the request and route result AND BASED ON THE METHOD
+    // │      ├─ 200 OK (for successful GET/POST/DELETE)
+    // │      ├─ 201 Created (for successful POST that creates a resource)
+    // │      ├─ 204 No Content (for successful DELETE)
+    // │      ├─ 301 Moved Permanently (if resource has moved, use Location header to indicate new URL)
+    // │      ├─ 400 Bad Request (if request is malformed)
+    // │      ├─ 403 Forbidden (if access is denied)
+    // │      ├─ 404 Not Found (if resource doesn’t exist)
+    // │      ├─ 405 Method Not Allowed (if method is not supported by the resource)
+    // │      ├─ 413 Payload Too Large (if POST body exceeds max size)
+    // │      ├─ 500 Internal Server Error (for unexpected server errors)
+    // │      ├─ 501 Not Implemented (if method is not implemented by the server)
+    // │      └─ 503 Service Unavailable (if server is overloaded or down for maintenance)
+                      
     decideStatus(req, routeResult.finalPath, !routeResult.isAllowed);
     if (fileSize < 1024 *1024){
         setResponseBody(routeResult.finalPath);
@@ -186,7 +201,7 @@ std::string handleDelete(const RouteResult& route)
     {
         return "HTTP/1.1 403 Forbidden\r\nContent-Length: 0\r\nConnection: keep-alive\r\n\r\n";
     }
-    if (unlink(route.finalPath.c_str()) == 0)
+    if (std::remove(route.finalPath.c_str()) == 0)
     {
         std::cout << "[DELETE] Successfully removed: " << route.finalPath << std::endl;
         return "HTTP/1.1 204 No Content\r\nConnection: keep-alive\r\n\r\n";
