@@ -23,7 +23,7 @@ class HttpResponse : public HttpRequest, public Router {
         int status_code;
         off_t fileSize;
     public :
-        void generateResponse(const HttpRequest& req,  RouteResult& routeResult, int clientFd);
+        void generateResponse(const HttpRequest& req,  RouteResult& routeResult, int clientFd, const std::string& autoIndexContent);
         void setStatusLine(int code);
         void setResponseHeaders(std::string path);
         void setResponseBody(std::string path);

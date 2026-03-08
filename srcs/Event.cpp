@@ -76,7 +76,7 @@ void Event::run(SocketManager& manager, EpollManager& epollManager) {
                         size_t index = clientServerIndex[fd];
                         RouteResult result = routeResult.resolve(requests[fd],*manager.getSockets()[index]->getServer());
                         AutoIndex autoIndex;
-                        autoIndex.generate(result.finalPath, requests[fd].getPath());
+                        std::string autoIndexContent = autoIndex.generate(result.finalPath, requests[fd].getPath());
                         std::cout << "server root: " << manager.getSockets()[index]->getServer()->root << std::endl;
                         std::cout << "final path: " << result.finalPath << std::endl;
                         std::cout << "server port: " << manager.getSockets()[index]->getPort() << std::endl;
@@ -85,7 +85,7 @@ void Event::run(SocketManager& manager, EpollManager& epollManager) {
                         std::cout << "Erorr code: " << requests[fd].getErrorCode() << std::endl;
                         std::cout << "==================================" << std::endl;
                         HttpResponse response;
-                        response.generateResponse(requests[fd], result, fd);
+                        response.generateResponse(requests[fd], result, fd, autoIndexContent);
                         epollManager.ctrl(fd, 0, EPOLL_CTL_DEL);
                         close(fd);
                         requests.erase(fd);

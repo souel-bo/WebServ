@@ -138,6 +138,10 @@ void HttpResponse::setResponseHeaders(std::string path)
             contentType = "image/png";
         else if (extension == "gif")
             contentType = "image/gif";
+        else if (extension == "mp4")
+            contentType = "video/mp4";
+        else if (extension == "pdf")
+            contentType = "application/pdf";
     }
     response_headers["Content-Type"] = contentType;
     response_headers["Content-Length"] = content_length;
@@ -154,7 +158,7 @@ void HttpResponse::write_response()
     send(_clientFd, finalResponse.c_str(), finalResponse.size(), 0);
 }
 
-void HttpResponse::generateResponse(const HttpRequest& req, RouteResult& routeResult, int clientFd)
+void HttpResponse::generateResponse(const HttpRequest& req, RouteResult& routeResult, int clientFd, const std::string& autoIndexContent)
 {
     _clientFd = clientFd;
     decideStatus(req, routeResult.finalPath, !routeResult.isAllowed);
@@ -165,6 +169,22 @@ void HttpResponse::generateResponse(const HttpRequest& req, RouteResult& routeRe
     {
         std::cout << "Decided status code: " << status_code << std::endl;
         if (fileSize < 1024 *1024){
+            if (routeResult.isDirectory)
+            {
+                setStatusLine(200);
+                response_body = autoIndexContent;
+                std::string contentType = "text/html";
+                std::ostringstream oss;
+                oss << response_body.size();
+                content_length = oss.str();
+                response_headers["Content-Type"] = contentType;
+                response_headers["Content-Length"] = content_length;
+                response_headers["Connection"] = "close";
+                response_headers["Server"] = "webserv";
+                write_response();
+            }
+            else
+            {
             setResponseBody(routeResult.finalPath);
             setResponseHeaders(routeResult.finalPath);
             write_response();
@@ -185,6 +205,7 @@ void HttpResponse::generateResponse(const HttpRequest& req, RouteResult& routeRe
     // └─ 6. Response is ready to send
     //        ├─ Small file → send in one go
     //        └─ Large file → send in chunks from file
+    }
 }
 
 std::string handleDelete(const RouteResult& route)
