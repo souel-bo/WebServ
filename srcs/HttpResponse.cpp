@@ -169,7 +169,7 @@ void HttpResponse::generateResponse(const HttpRequest& req, RouteResult& routeRe
     {
         std::cout << "Decided status code: " << status_code << std::endl;
         if (fileSize < 1024 *1024){
-            if (routeResult.isDirectory)
+            if (routeResult.isDirectory && routeResult.location.autoindex)
             {
                 setStatusLine(200);
                 response_body = autoIndexContent;
