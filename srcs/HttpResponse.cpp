@@ -253,64 +253,154 @@ void HttpResponse::generateResponse(const HttpRequest& req, RouteResult& routeRe
     }
 }
 
-// std::string handleDelete(const RouteResult& route)
-// {
-//     if (!route.isAllowed)
-//     {
-//         return "HTTP/1.1 405 Method Not Allowed\r\nContent-Length: 0\r\nConnection: keep-alive\r\n\r\n";
-//     }
-//     if (route.isDirectory)
-//     {
-//         return "HTTP/1.1 403 Forbidden\r\nContent-Length: 0\r\nConnection: keep-alive\r\n\r\n";
-//     }
-//     if (access(route.finalPath.c_str(), F_OK) != 0)
-//     {
-//         return "HTTP/1.1 404 Not Found\r\nContent-Length: 0\r\nConnection: keep-alive\r\n\r\n";
-//     }
-//     if (access(route.finalPath.c_str(), W_OK) != 0) 
-//     {
-//         return "HTTP/1.1 403 Forbidden\r\nContent-Length: 0\r\nConnection: keep-alive\r\n\r\n";
-//     }
-//     if (std::remove(route.finalPath.c_str()) == 0)
-//     {
-//         std::cout << "[DELETE] Successfully removed: " << route.finalPath << std::endl;
-//         return "HTTP/1.1 204 No Content\r\nConnection: keep-alive\r\n\r\n";
-//     } else
-//     {
-//         return "HTTP/1.1 500 Internal Server Error\r\nContent-Length: 0\r\nConnection: keep-alive\r\n\r\n";
-//     }
-// }
+std::string getExtensionFromContentType(const std::string& contentType)
+{
+    std::string ct = contentType;
+    size_t pos = ct.find(';');
+    if (pos != std::string::npos)
+    {
+        ct = ct.substr(0, pos);
+    }
+    if (ct == "image/jpeg")
+        return ".jpg";
+    if (ct == "image/png")
+        return ".png";
+    if (ct == "image/gif")
+        return ".gif";
+    if (ct == "text/plain")
+        return ".txt";
+    if (ct == "text/html")
+        return ".html";
+    if (ct == "application/json")
+        return ".json";
+    if (ct == "application/pdf")
+        return ".pdf";
+    return ".bin"; 
+}
 
-// std::string handlePost(const HttpRequest& req, const RouteResult& route)
-// {
-//     if (!route.isAllowed)
-//     {
-//         return "HTTP/1.1 405 Method Not Allowed\r\nContent-Length: 0\r\nConnection: keep-alive\r\n\r\n";
-//     }
-//     if (req.getBody().length() > route.location.maxBodySize)
-//     {
-//         return "HTTP/1.1 413 Payload Too Large\r\nContent-Length: 0\r\nConnection: keep-alive\r\n\r\n";
-//     }
-//     std::string targetPath = route.finalPath;
-//     struct stat s;
-//     if (stat(targetPath.c_str(), &s) == 0 && S_ISDIR(s.st_mode))
-//     {
-//         if (targetPath[targetPath.length() - 1] != '/')
-//         {
-//             targetPath += "/";
-//         }
-//         std::ostringstream filename;
-//         filename << "upload_" << time(NULL) << ".bin";
-//         targetPath += filename.str();
-//     }
-//     std::ofstream outFile(targetPath.c_str(), std::ios::binary);
-//     if (!outFile.is_open())
-//     {
-//         std::cerr << "[POST] Error: Could not open " << targetPath << " for writing. Check folder permissions." << std::endl;
-//         return "HTTP/1.1 500 Internal Server Error\r\nContent-Length: 0\r\nConnection: keep-alive\r\n\r\n";
-//     }
-//     outFile.write(req.getBody().data(), req.getBody().length());
-//     outFile.close();
-//     std::cout << "[POST] Successfully created file: " << targetPath << " (" << req.getBody().length() << " bytes)" << std::endl;
-//     return "HTTP/1.1 201 Created\r\nContent-Length: 0\r\nConnection: keep-alive\r\n\r\n";
-// }
+
+std::string handleDelete(const HttpRequest& req, const RouteResult& route)
+{
+    if (!route.isAllowed)
+        return "HTTP/1.1 405 Method Not Allowed\r\nContent-Length: 0\r\nConnection: keep-alive\r\n\r\n";
+    if (req.getPath().find("../") != std::string::npos)
+        return "HTTP/1.1 403 Forbidden\r\nContent-Length: 0\r\nConnection: keep-alive\r\n\r\n";
+    if (route.isDirectory)
+        return "HTTP/1.1 403 Forbidden\r\nContent-Length: 0\r\nConnection: keep-alive\r\n\r\n";
+    if (access(route.finalPath.c_str(), F_OK) != 0)
+        return "HTTP/1.1 404 Not Found\r\nContent-Length: 0\r\nConnection: keep-alive\r\n\r\n";
+    if (access(route.finalPath.c_str(), W_OK) != 0) 
+        return "HTTP/1.1 403 Forbidden\r\nContent-Length: 0\r\nConnection: keep-alive\r\n\r\n";
+    if (std::remove(route.finalPath.c_str()) == 0)
+    {
+        std::cout << "[DELETE] Successfully removed: " << route.finalPath << std::endl;
+        return "HTTP/1.1 204 No Content\r\nConnection: keep-alive\r\n\r\n";
+    } else
+    {
+        return "HTTP/1.1 500 Internal Server Error\r\nContent-Length: 0\r\nConnection: keep-alive\r\n\r\n";
+    }
+}
+
+std::string handlePost(const HttpRequest& req, const RouteResult& route)
+{
+    if (!route.isAllowed)
+        return "HTTP/1.1 405 Method Not Allowed\r\nContent-Length: 0\r\nConnection: keep-alive\r\n\r\n";
+    if (req.getBody().length() > route.location.maxBodySize)
+        return "HTTP/1.1 413 Payload Too Large\r\nContent-Length: 0\r\nConnection: keep-alive\r\n\r\n";
+    std::string targetPath = route.finalPath;
+    struct stat s;
+    bool isDir = (stat(targetPath.c_str(), &s) == 0 && S_ISDIR(s.st_mode));
+    if (isDir && targetPath[targetPath.length() - 1] != '/')
+        targetPath += "/";
+    std::map<std::string, std::string>::const_iterator it = req.getHeaders().find("Content-Type");
+    std::string contentType;
+    if (it != req.getHeaders().end()) 
+    {
+        contentType = it->second;
+    } 
+    else 
+    {
+        contentType = "";
+    }
+    bool isMultipart = (contentType.find("multipart/form-data") != std::string::npos);
+    if (isMultipart)
+    {
+        size_t bPos = contentType.find("boundary=");
+        if (bPos == std::string::npos) 
+            return "HTTP/1.1 400 Bad Request\r\nContent-Length: 0\r\nConnection: keep-alive\r\n\r\n";
+        std::string boundary = "--" + contentType.substr(bPos + 9);
+        const std::string& body = req.getBody();
+        size_t start = body.find(boundary);
+        bool fileSaved = false;
+        while (start != std::string::npos)
+        {
+            start += boundary.length();
+            if (start + 2 <= body.length() && body.substr(start, 2) == "--")
+                break; 
+            if (start + 2 <= body.length() && body.substr(start, 2) == "\r\n")
+                start += 2;
+            size_t end = body.find(boundary, start);
+            if (end == std::string::npos)
+                break;
+            size_t partEnd;
+            if (end >= 2 && body.substr(end - 2, 2) == "\r\n")
+                partEnd = end - 2;
+            else 
+                partEnd = end;
+            size_t headerEnd = body.find("\r\n\r\n", start);
+            if (headerEnd != std::string::npos && headerEnd < partEnd)
+            {
+                std::string headers = body.substr(start, headerEnd - start);
+                size_t dataStart = headerEnd + 4;
+                size_t dataLength = partEnd - dataStart;
+                size_t fnPos = headers.find("filename=\"");
+                if (fnPos != std::string::npos)
+                {
+                    fnPos += 10;
+                    size_t fnEnd = headers.find("\"", fnPos);
+                    std::string filename = headers.substr(fnPos, fnEnd - fnPos);
+                    if (!filename.empty())
+                    {
+                        std::string savePath;
+                        if (isDir) 
+                        {
+                            savePath = targetPath + filename;
+                        } 
+                        else 
+                        {
+                            savePath = targetPath;
+                        }
+                        std::ofstream outFile(savePath.c_str(), std::ios::binary);
+                        if (outFile.is_open())
+                        {
+                            outFile.write(body.data() + dataStart, dataLength);
+                            outFile.close();
+                            std::cout << "[MULTIPART] Saved: " << savePath << " (" << dataLength << " bytes)" << std::endl;
+                            fileSaved = true;
+                        }
+                    }
+                }
+            }
+            start = end;
+        }
+        if (fileSaved)
+            return "HTTP/1.1 201 Created\r\nContent-Length: 0\r\nConnection: keep-alive\r\n\r\n";
+        else
+            return "HTTP/1.1 500 Internal Server Error\r\nContent-Length: 0\r\nConnection: keep-alive\r\n\r\n";
+    }
+
+    if (isDir)
+    {
+        std::string ext = getExtensionFromContentType(contentType);
+        std::ostringstream filename;
+        filename << "upload_" << time(NULL) << ext;
+        targetPath += filename.str();
+    }
+    std::ofstream outFile(targetPath.c_str(), std::ios::binary);
+    if (!outFile.is_open())
+        return "HTTP/1.1 500 Internal Server Error\r\nContent-Length: 0\r\nConnection: keep-alive\r\n\r\n";
+    outFile.write(req.getBody().data(), req.getBody().length());
+    outFile.close();
+    std::cout << "[RAW POST] Saved: " << targetPath << " (" << req.getBody().length() << " bytes)" << std::endl;
+    return "HTTP/1.1 201 Created\r\nContent-Length: 0\r\nConnection: keep-alive\r\n\r\n";
+}
