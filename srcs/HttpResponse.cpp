@@ -176,8 +176,9 @@ void HttpResponse::send_small_files(const RouteResult& routeResult, const std::s
         set_directory_autoindex(autoIndexContent);
     else
     {
-        setResponseHeaders(routeResult.finalPath);
         set_body(routeResult.finalPath);
+        std::cout << "content length: " << content_length << std::endl;
+        setResponseHeaders(routeResult.finalPath);
         write_response();
     }
 }
@@ -204,6 +205,7 @@ void HttpResponse::send_large_file(const RouteResult& routeResult)
     for (std::map<std::string, std::string>::const_iterator it = response_headers.begin(); it != response_headers.end(); ++it)
         headerResponse += it->first + ": " + it->second + "\r\n";
     headerResponse += "\r\n";
+    std::cout << "[Response] Sending headers:\n" << headerResponse << std::endl;
     send(_clientFd, headerResponse.c_str(), headerResponse.size(), 0);
     char buffer[8192];
     ssize_t bytesRead;
@@ -237,6 +239,9 @@ void HttpResponse::generateResponse(const HttpRequest& req, RouteResult& routeRe
                 send_small_files(routeResult, autoIndexContent);
             else {
                 std::cout << "[Response] Large file detected (" << fileSize << " bytes), using sendfile for efficient transfer." << std::endl;
+                std::ostringstream oss;
+                oss << fileSize;
+                content_length = oss.str();
                 send_large_file(routeResult);
             }
         }
