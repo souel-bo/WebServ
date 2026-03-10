@@ -45,7 +45,6 @@ class HttpResponse : public HttpRequest, public Router {
         int getStatusCode() const;
         void generate_status_code(const HttpRequest& req, const RouteResult& routeResult);
         void check_error(const HttpRequest& req, const RouteResult& routeResult);
-        int check_status_fourhundred(const HttpRequest& req, const RouteResult& routeResult);
         void setStatusLine();
         void setResponseHeaders(std::string path);
         void Status_file(const RouteResult& routeResult);
@@ -60,6 +59,7 @@ class HttpResponse : public HttpRequest, public Router {
         std::string handleDelete(const HttpRequest& req, const RouteResult& route);
         std::string handlePost(const HttpRequest& req, const RouteResult& route);
         std::string getExtensionFromContentType(const std::string& contentType);
+        int check_status_fourhundred(const HttpRequest& req, const RouteResult& routeResult);
 };
 
 #endif

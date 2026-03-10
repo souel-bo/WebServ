@@ -21,7 +21,7 @@ HttpRequest::~HttpRequest()
 void HttpRequest::openTempFile()
 {
     std::ostringstream ss;
-    ss << "./www/admin/uploads/tmp_" << this << "_" << time(NULL) << ".bin";
+    ss << "./www/html/www/files/uploads/tmp_" << this << "_" << time(NULL) << ".bin";
     bodyFilename = ss.str();
     
     bodyFd = open(bodyFilename.c_str(), O_CREAT | O_WRONLY | O_APPEND, 0666);
@@ -80,7 +80,10 @@ void HttpRequest::parse(std::string &rawBuffer)
                     if (headers.count("Transfer-Encoding") && headers["Transfer-Encoding"] == "chunked") 
                     {
                         openTempFile();
-                        state = Request_Chunked;
+                        if (state != Request_Finished) 
+                        {
+                            state = Request_Chunked;
+                        }
                     } 
                     else if (headers.count("Content-Length")) 
                     {
@@ -93,7 +96,10 @@ void HttpRequest::parse(std::string &rawBuffer)
                         else 
                         {
                             openTempFile();
-                            state = Request_Body;
+                            if (state != Request_Finished) 
+                            {
+                                state = Request_Body;
+                            }
                         }
                     } 
                     else 

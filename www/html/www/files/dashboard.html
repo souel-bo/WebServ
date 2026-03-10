@@ -1,0 +1,171 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>WebServ | Control Panel</title>
+    <style>
+        :root {
+            --bg: #1e1e2e;
+            --surface: #313244;
+            --text: #cdd6f4;
+            --primary: #89b4fa;
+            --danger: #f38ba8;
+            --success: #a6e3a1;
+        }
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: var(--bg);
+            color: var(--text);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 50px;
+        }
+        .container {
+            display: flex;
+            gap: 20px;
+            width: 100%;
+            max-width: 800px;
+        }
+        .card {
+            background: var(--surface);
+            padding: 25px;
+            border-radius: 12px;
+            flex: 1;
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.5);
+        }
+        h2 { margin-top: 0; border-bottom: 2px solid var(--primary); padding-bottom: 10px; }
+        input[type="file"], input[type="text"] {
+            width: 90%;
+            padding: 10px;
+            margin: 15px 0;
+            background: var(--bg);
+            border: 1px solid #585b70;
+            color: var(--text);
+            border-radius: 6px;
+        }
+        button {
+            padding: 10px 20px;
+            border: none;
+            border-radius: 6px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: 0.2s;
+            width: 100%;
+        }
+        .btn-post { background-color: var(--primary); color: #11111b; }
+        .btn-post:hover { background-color: #74c7ec; }
+        .btn-delete { background-color: var(--danger); color: #11111b; }
+        .btn-delete:hover { background-color: #eba0ac; }
+        
+        #console {
+            margin-top: 30px;
+            width: 100%;
+            max-width: 800px;
+            background: #11111b;
+            padding: 15px;
+            border-radius: 8px;
+            font-family: monospace;
+            min-height: 100px;
+        }
+        .log-success { color: var(--success); }
+        .log-error { color: var(--danger); }
+    </style>
+</head>
+<body>
+
+    <h1>🚀 WebServ Dashboard</h1>
+
+    <div class="container">
+        <div class="card">
+            <h2>Upload File (POST)</h2>
+            <form id="uploadForm">
+                <label>Select any file to stream to the server:</label>
+                <input type="file" id="fileInput" required>
+                <button type="submit" class="btn-post">Upload File</button>
+            </form>
+        </div>
+
+        <div class="card">
+            <h2>Remove File (DELETE)</h2>
+            <label>Type the exact filename to delete:</label>
+            <input type="text" id="deleteInput" placeholder="e.g., video.mp4" required>
+            <button id="deleteBtn" class="btn-delete">Delete File</button>
+        </div>
+    </div>
+
+    <div id="console">
+        <span style="color: #6c7086;">Server logs will appear here...</span><br>
+    </div>
+
+    <script>
+        const terminal = document.getElementById('console');
+
+        function log(message, type) {
+            const span = document.createElement('span');
+            span.className = type === 'success' ? 'log-success' : 'log-error';
+            span.innerText = `> ${message}\n`;
+            terminal.appendChild(span);
+        }
+
+        // --- HANDLE POST (UPLOAD) ---
+        document.getElementById('uploadForm').addEventListener('submit', async (e) => {
+            e.preventDefault(); // Stop page from refreshing
+            const fileInput = document.getElementById('fileInput');
+            const file = fileInput.files[0];
+
+            if (!file) return;
+
+            // This automatically builds the multipart/form-data boundary envelope!
+            const formData = new FormData();
+            formData.append('file', file);
+
+            try {
+                // IMPORTANT: Change '/uploads' if your config uses a different path!
+                const response = await fetch('/uploads', {
+                    method: 'POST',
+                    body: formData
+                });
+
+                if (response.ok || response.status === 201) {
+                    log(`[201 Created] Successfully uploaded: ${file.name}`, 'success');
+                } else {
+                    log(`[${response.status}] Upload failed: Server rejected the file.`, 'error');
+                }
+            } catch (err) {
+                log(`[Error] Could not connect to server.`, 'error');
+            }
+        });
+
+        // --- HANDLE DELETE ---
+        document.getElementById('deleteBtn').addEventListener('click', async () => {
+            const filename = document.getElementById('deleteInput').value.trim();
+            if (!filename) {
+                log(`[Warning] Please enter a filename.`, 'error');
+                return;
+            }
+
+            try {
+                // IMPORTANT: Change '/uploads/' if your config uses a different path!
+                const response = await fetch(`/uploads/${filename}`, {
+                    method: 'DELETE'
+                });
+
+                if (response.ok || response.status === 204) {
+                    log(`[204 No Content] Successfully deleted: ${filename}`, 'success');
+                } else if (response.status === 404) {
+                    log(`[404 Not Found] File '${filename}' does not exist on server.`, 'error');
+                } else if (response.status === 403) {
+                    log(`[403 Forbidden] You do not have permission to delete this.`, 'error');
+                } else {
+                    log(`[${response.status}] Failed to delete file.`, 'error');
+                }
+            } catch (err) {
+                log(`[Error] Could not connect to server.`, 'error');
+            }
+        });
+    </script>
+
+</body>
+</html>

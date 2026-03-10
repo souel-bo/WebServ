@@ -95,25 +95,25 @@ bool HttpResponse::continueLargeTransfer(int clientFd)
 
 int HttpResponse::check_status_fourhundred(const HttpRequest& req, const RouteResult& routeResult)
 {
-    if (!routeResult.isAllowed){
+    if (!routeResult.isAllowed)
+    {
         errorOccurred = true;
         return 405;
     }
-    if (routeResult.isDirectory && req.getMethod() != "GET")
+    if (routeResult.isDirectory && req.getMethod() == "DELETE")
     {
         errorOccurred = true;
         return 403;
     }
     if (!routeResult.isDirectory && access(routeResult.finalPath.c_str(), F_OK) != 0)
     {
-        errorOccurred = true;
-        return 404;
+        if (req.getMethod() != "POST") 
+        {
+            errorOccurred = true;
+            return 404;
+        }
     }
-    // if (req.getMethod() == "POST" && req.getBody().length() > routeResult.location.maxBodySize)
-    // {
-    //     errorOccurred = true;
-    //     return 413;
-    // }
+    
     return 0;
 }
 
