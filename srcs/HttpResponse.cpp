@@ -245,6 +245,16 @@ void HttpResponse::generateResponse(const HttpRequest& req, RouteResult& routeRe
                 send_large_file(routeResult);
             }
         }
+        else if (req.getMethod() == "POST")
+        {
+            std::string postResponse = handlePost(req, routeResult);
+            send(_clientFd, postResponse.c_str(), postResponse.size(), 0);
+        }
+        else if (req.getMethod() == "DELETE")
+        {
+            std::string deleteResponse = handleDelete(req, routeResult);
+            send(_clientFd, deleteResponse.c_str(), deleteResponse.size(), 0);
+        }
     }
     else
     {
