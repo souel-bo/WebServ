@@ -337,7 +337,7 @@ void HttpResponse::generateResponse(const HttpRequest& req, RouteResult& routeRe
     }
 }
 
-std::string getExtensionFromContentType(const std::string& contentType)
+std::string HttpResponse::getExtensionFromContentType(const std::string& contentType)
 {
     std::string ct = contentType;
     size_t pos = ct.find(';');
@@ -363,7 +363,7 @@ std::string getExtensionFromContentType(const std::string& contentType)
 }
 
 
-std::string handleDelete(const HttpRequest& req, const RouteResult& route)
+std::string HttpResponse::handleDelete(const HttpRequest& req, const RouteResult& route)
 {
     if (!route.isAllowed)
     {
@@ -401,7 +401,7 @@ std::string handleDelete(const HttpRequest& req, const RouteResult& route)
     }
 }
 
-std::string handlePost(const HttpRequest& req, const RouteResult& route)
+std::string HttpResponse::handlePost(const HttpRequest& req, const RouteResult& route)
 {
     if (!route.isAllowed)
     {
