@@ -33,7 +33,7 @@ bool HttpResponse::continueLargeTransfer(int clientFd)
     if (transfer.headerSent < transfer.header.size())
     {
         ssize_t sent = send(clientFd, transfer.header.c_str() + transfer.headerSent,
-                            transfer.header.size() - transfer.headerSent, 0);
+                            transfer.header.size() - transfer.headerSent, MSG_NOSIGNAL);
         if (sent > 0)
             transfer.headerSent += static_cast<size_t>(sent);
         else if (sent == -1)
@@ -70,7 +70,7 @@ bool HttpResponse::continueLargeTransfer(int clientFd)
     if (transfer.bufferSent < transfer.bufferLen)
     {
         ssize_t sent = send(clientFd, transfer.buffer + transfer.bufferSent,
-                            transfer.bufferLen - transfer.bufferSent, 0);
+                            transfer.bufferLen - transfer.bufferSent, MSG_NOSIGNAL);
         if (sent > 0)
             transfer.bufferSent += sent;
         else if (sent == -1)
@@ -236,7 +236,7 @@ void HttpResponse::write_response()
     for (std::map<std::string, std::string>::const_iterator it = response_headers.begin(); it != response_headers.end(); ++it)
         finalResponse += it->first + ": " + it->second + "\r\n";
     finalResponse += "\r\n" + response_body;
-    send(_clientFd, finalResponse.c_str(), finalResponse.size(), 0);
+    send(_clientFd, finalResponse.c_str(), finalResponse.size(), MSG_NOSIGNAL);
 }
 
 void HttpResponse::set_directory_autoindex( const std::string& autoIndexContent){
@@ -322,12 +322,12 @@ void HttpResponse::generateResponse(const HttpRequest& req, RouteResult& routeRe
         else if (req.getMethod() == "POST")
         {
             std::string postResponse = handlePost(req, routeResult);
-            send(_clientFd, postResponse.c_str(), postResponse.size(), 0);
+            send(_clientFd, postResponse.c_str(), postResponse.size(), MSG_NOSIGNAL);
         }
         else if (req.getMethod() == "DELETE")
         {
             std::string deleteResponse = handleDelete(req, routeResult);
-            send(_clientFd, deleteResponse.c_str(), deleteResponse.size(), 0);
+            send(_clientFd, deleteResponse.c_str(), deleteResponse.size(), MSG_NOSIGNAL);
         }
     }
     else
