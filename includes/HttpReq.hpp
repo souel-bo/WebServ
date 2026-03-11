@@ -29,6 +29,7 @@ class HttpRequest
         size_t                              contentLength;
         std::string                         storage;
         int                                 errorCode;
+        bool                                hasCookies;
 
         bool    parseRequestLine(std::string &line);
         void    parseHeaders(std::string &line);
@@ -40,8 +41,8 @@ class HttpRequest
         HttpRequest();
         ~HttpRequest();
 
-        void    parse(std::string &rawBuffer);
-        void    reset();
+        void                                parse(std::string &rawBuffer);
+        void                                reset();
         const std::string&                  getMethod() const;
         const std::string&                  getPath() const;
         const std::string&                  getVersion() const;
@@ -49,6 +50,7 @@ class HttpRequest
         const std::map<std::string, std::string>& getHeaders() const;
         RequestParseState                   getState() const;
         int                                 getErrorCode() const;
+        bool                                   getHasCookies() const;
 };
 
 #endif

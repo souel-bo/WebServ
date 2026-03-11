@@ -7,7 +7,7 @@
 #include <fcntl.h>  
 #include <unistd.h> 
 
-HttpRequest::HttpRequest() : bodyFd(-1), bodyBytesWritten(0), state(Request_Line), contentLength(0), errorCode(0) {}
+HttpRequest::HttpRequest() : bodyFd(-1), bodyBytesWritten(0), state(Request_Line), contentLength(0), errorCode(0), hasCookies(false) {}
 
 HttpRequest::~HttpRequest() 
 {
@@ -155,6 +155,13 @@ void HttpRequest::parseHeaders(std::string &line)
     if (colon != std::string::npos)
     {
         std::string key = line.substr(0, colon);
+        bool capitalizeNext = true;
+        for (size_t i = 0; i < key.length(); ++i)
+        {
+            if (capitalizeNext && key[i] >= 'a' && key[i] <= 'z') key[i] -= 32; 
+            else if (!capitalizeNext && key[i] >= 'A' && key[i] <= 'Z') key[i] += 32; 
+            capitalizeNext = (key[i] == '-');
+        }
         std::string value = line.substr(colon + 1);
         size_t first = value.find_first_not_of(" ");
         size_t last = value.find_last_not_of(" ");
@@ -162,6 +169,10 @@ void HttpRequest::parseHeaders(std::string &line)
         if (first != std::string::npos)
         {
             headers[key] = value.substr(first, (last - first + 1));
+            if (key == "Cookie")
+            {
+                hasCookies = true;
+            }
         }
     }
 }
@@ -263,6 +274,7 @@ void HttpRequest::reset()
     contentLength = 0;
     state = Request_Line;
     errorCode = 0;
+    hasCookies = false;
 }
 
 const std::string& HttpRequest::getMethod() const 
@@ -298,4 +310,9 @@ int HttpRequest::getErrorCode() const
 const std::string& HttpRequest::getBodyFilename() const 
 { 
     return bodyFilename; 
+}
+
+bool HttpRequest::getHasCookies() const
+{
+    return hasCookies;
 }
