@@ -22,10 +22,11 @@ void Event::run(SocketManager& manager, EpollManager& epollManager) {
     }
 
     while (true) {
-        std::vector<int> readyFds = epollManager.wait(-1);
+        std::vector<struct epoll_event> readyEvents = epollManager.wait(-1);
 
-        for (size_t i = 0; i < readyFds.size(); ++i) {
-            int fd = readyFds[i];
+        for (size_t i = 0; i < readyEvents.size(); ++i) {
+            int fd = readyEvents[i].data.fd;
+            uint32_t events = readyEvents[i].events;
 
             bool isListeningSocket = false;
             size_t serverIndex = 0;
@@ -51,7 +52,7 @@ void Event::run(SocketManager& manager, EpollManager& epollManager) {
                     clientServerIndex[_clientFd] = serverIndex;
                 }
             }
-            else
+            if (!isListeningSocket && (events & EPOLLIN || events & EPOLLOUT))
             {
                 if (HttpResponse::hasPendingLargeTransfer(fd))
                 {

@@ -11,6 +11,6 @@ class EpollManager {
         EpollManager();
         ~EpollManager();
         void ctrl(int fd, uint32_t events, int operation);
-        std::vector<int> wait(int timeout);
+        std::vector<struct epoll_event> wait(int timeout);
 };
 #endif

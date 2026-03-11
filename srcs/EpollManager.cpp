@@ -22,13 +22,13 @@ void EpollManager::ctrl(int fd, uint32_t events, int operation) {
         throw std::runtime_error("Failed to control epoll instance");
 }
 
-std::vector<int> EpollManager::wait(int timeout) {
-    std::vector<int> readyFds;
+std::vector<struct epoll_event> EpollManager::wait(int timeout) {
+    std::vector<struct epoll_event> readyEvents;
     struct epoll_event events[1024];
     int numEvents = epoll_wait(_epollFd, events, 1024, timeout);
     if (numEvents == -1)
         throw std::runtime_error("Failed to wait on epoll instance");
     for (int i = 0; i < numEvents; ++i)
-        readyFds.push_back(events[i].data.fd);
-    return readyFds;
+        readyEvents.push_back(events[i]);
+    return readyEvents;
 }
