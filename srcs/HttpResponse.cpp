@@ -108,17 +108,17 @@ int HttpResponse::check_status_fourhundred(const HttpRequest& req, const RouteRe
         errorOccurred = true;
         return 403;
     }
-    if (!routeResult.isDirectory && access(routeResult.finalPath.c_str(), R_OK) != 0)
-    {
-        errorOccurred = true;
-        return 403;
-    }
-    if (!routeResult.isDirectory && access(routeResult.finalPath.c_str(), F_OK) != 0)
+    if (!routeResult.isDirectory && access(routeResult.finalPath.c_str(), F_OK) != 0 )
     {
         if (req.getMethod() != "POST") 
         {
             errorOccurred = true;
             return 404;
+        }
+        if (!routeResult.isDirectory && access(routeResult.finalPath.c_str(), R_OK) != 0 )
+        {
+            errorOccurred = true;
+            return 403;
         }
     }
     
