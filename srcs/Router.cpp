@@ -43,7 +43,6 @@ RouteResult Router::resolve(const HttpRequest& req, const ServerConfig& config)
     RouteResult result;
     result.isAllowed = true;
     result.isDirectory = false;
-    result.serverRoot = config.root;
     // ── Root path ────────────────────────────────────────────────────────────
     // config.root is the global server root from the config file.
     // It is stored here in result.serverRoot so that any downstream
