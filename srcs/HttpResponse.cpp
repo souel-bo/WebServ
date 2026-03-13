@@ -1,5 +1,6 @@
 #include "HttpResponse.hpp"
 #include "../includes/Cgi.hpp"
+#include "SessionManager.hpp"
 #include "HttpReq.hpp"
 #include "Router.hpp"
 #include <string>
@@ -15,6 +16,13 @@
 #include <cstring>
 
 std::map<int, LargeFileTransfer> HttpResponse::_pendingLargeTransfers;
+static void addHeaderToRawResponse(std::string& rawResponse, const std::string& key, const std::string& value)
+{
+    size_t headerEnd = rawResponse.find("\r\n\r\n");
+    if (headerEnd == std::string::npos)
+        return;
+    rawResponse.insert(headerEnd, "\r\n" + key + ": " + value);
+}
 
 LargeFileTransfer::LargeFileTransfer() : fileFd(-1), headerSent(0), bufferLen(0), bufferSent(0), eof(false) {}
 
@@ -181,6 +189,12 @@ void HttpResponse::setStatusLine()
     }
 }
 
+void HttpResponse::setHeader(const std::string& key, const std::string& value)
+{
+    // Generic setter used by SessionManager to attach Set-Cookie.
+    response_headers[key] = value;
+}
+
 void HttpResponse::setResponseHeaders(std::string path)
 {
     std::string contentType = "application/octet-stream";
@@ -227,7 +241,13 @@ void HttpResponse::Status_file(const RouteResult& routeResult)
 
 void HttpResponse::set_body(const std::string& path)
 {
+    response_body.clear();
     int fd = open(path.c_str(), O_RDONLY);
+    if (fd == -1)
+    {
+        content_length = "0";
+        return;
+    }
     char buffer[4096];
     ssize_t bytesRead;
     while ((bytesRead = read(fd, buffer, sizeof(buffer))) > 0)
@@ -309,6 +329,55 @@ void HttpResponse::send_large_file(const RouteResult& routeResult)
 void HttpResponse::generateResponse(const HttpRequest& req, RouteResult& routeResult, int clientFd, const std::string& autoIndexContent)
 {
     _clientFd = clientFd;
+    response_headers.clear();
+    response_body.clear();
+    std::string reqPath = req.getPath();
+    std::string cleanPath = stripQueryString(reqPath);
+    std::string sessionId = extractSessionId(req);
+    bool createdNewSession = false;
+    if (!isSessionValid(sessionId))
+    {
+        Session& session = createSession();
+        sessionId = session.id;
+        createdNewSession = true;
+        attachSetCookieHeader(*this, sessionId);
+    }
+    if (cleanPath == "/login")
+    {
+        std::string username = extractQueryParam(reqPath, "user");
+        if (!username.empty() && isSessionValid(sessionId))
+        {
+            sessions[sessionId].logged_in = true;
+            sessions[sessionId].username = username;
+            status_code = 302;
+            setStatusLine();
+            content_length = "0";
+            response_headers["Location"] = "/dashboard";
+            response_headers["Content-Type"] = "text/plain";
+            response_headers["Content-Length"] = content_length;
+            response_headers["Connection"] = "close";
+            response_headers["Server"] = "webserv";
+            write_response();
+            return;
+        }
+    }
+    if (routeResult.requires_login)
+    {
+        if (!isSessionValid(sessionId) || !sessions[sessionId].logged_in)
+        {
+            status_code = 302;
+            setStatusLine();
+            content_length = "0";
+            response_headers["Location"] = "/login";
+            response_headers["Content-Type"] = "text/plain";
+            response_headers["Content-Length"] = content_length;
+            response_headers["Connection"] = "close";
+            response_headers["Server"] = "webserv";
+            write_response();
+            return;
+        }
+    }
+
     if (check_favIco(routeResult))
         return;
     check_error(req, routeResult);
@@ -337,11 +406,15 @@ void HttpResponse::generateResponse(const HttpRequest& req, RouteResult& routeRe
         {
             std::cout << "[Response] Handling POST request for: " << routeResult.finalPath << std::endl;
             std::string postResponse = handlePost(req, routeResult);
+            if (createdNewSession)
+                addHeaderToRawResponse(postResponse, "Set-Cookie", "session_id=" + sessionId + "; Path=/");
             send(_clientFd, postResponse.c_str(), postResponse.size(), MSG_NOSIGNAL);
         }
         else if (req.getMethod() == "DELETE")
         {
             std::string deleteResponse = handleDelete(req, routeResult);
+            if (createdNewSession)
+                addHeaderToRawResponse(deleteResponse, "Set-Cookie", "session_id=" + sessionId + "; Path=/");
             send(_clientFd, deleteResponse.c_str(), deleteResponse.size(), MSG_NOSIGNAL);
         }
         }

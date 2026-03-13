@@ -45,6 +45,8 @@ class HttpResponse : public HttpRequest, public Router {
         int getStatusCode() const;
         void generate_status_code(const HttpRequest& req, const RouteResult& routeResult);
         void check_error(const HttpRequest& req, const RouteResult& routeResult);
+        // Generic header setter used by session helpers (e.g. Set-Cookie).
+        void setHeader(const std::string& key, const std::string& value);
         void setStatusLine();
         void setResponseHeaders(std::string path);
         void Status_file(const RouteResult& routeResult);

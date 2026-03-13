@@ -41,16 +41,24 @@ bool Router::fileExists(const std::string& path)
 RouteResult Router::resolve(const HttpRequest& req, const ServerConfig& config)
 {
     RouteResult result;
+    // Route starts allowed by default; method checks may flip this later.
     result.isAllowed = true;
+    // Will be updated to true if resolved path is a directory.
     result.isDirectory = false;
+    // Default root for this request: server-level root from config.
+    result.serverRoot = config.root;
     // ── Root path ────────────────────────────────────────────────────────────
     // config.root is the global server root from the config file.
     // It is stored here in result.serverRoot so that any downstream
     // consumer (e.g. HttpResponse) can resolve absolute paths without
     // having access to the full ServerConfig object.
+    // Forward server error_page table so HttpResponse can pick error files.
     result.errorPages = config.errorPages;
     
+    // Raw request URI path (may include query).
     std::string uri = req.getPath();
+    // Mark protected resources that require authenticated session.
+    result.requires_login = (uri == "/dashboard" || uri.find("/dashboard/") == 0);
     const Location* bestMatch = NULL;
     size_t longestMatchLength = 0;
     

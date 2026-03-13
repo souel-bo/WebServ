@@ -7,8 +7,12 @@
 
 struct RouteResult {
     bool        isAllowed;
+    // True when this resolved route requires authenticated session.
+    bool        requires_login;
     Location    location;
+    // Effective root path used to resolve static/error files.
     std::string serverRoot;
+    // Server-level error_page mapping (status -> file path).
     std::map<int, std::string> errorPages;
     std::string finalPath;
     bool        isDirectory; // HADA MACHI DABA
