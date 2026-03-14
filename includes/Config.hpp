@@ -13,9 +13,11 @@ class Location {
         std::string                 index;
         std::vector<std::string>    methods;
         std::string                 returnPath;
+        int                         returnCode;
         std::string                 alias;
-        unsigned long               maxBodySize; 
-        Location() : path(""), root(""), autoindex(false), index(""), returnPath(""), alias(""), maxBodySize(0) {}
+        unsigned long               maxBodySize;
+        bool                       is_Redirect;
+        Location() : path(""), root(""), autoindex(false), index(""), returnPath(""), returnCode(0), alias(""), maxBodySize(0), is_Redirect(false) {}
 };
 
 class ServerConfig {

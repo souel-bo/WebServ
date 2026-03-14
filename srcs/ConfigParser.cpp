@@ -207,7 +207,8 @@ void ConfigParser::parseLocationBlock(ServerConfig &server)
             {
                  if (!isNumeric(tokens[idx]))
                      throw std::runtime_error("Error: Invalid return code: " + tokens[idx]);
-                 idx++;
+                 loc.returnCode = toInt(tokens[idx++]);
+                 loc.is_Redirect = true;
             }
             loc.returnPath = tokens[idx++];
             expect(";");

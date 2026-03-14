@@ -265,7 +265,6 @@ void HttpResponse::write_response()
         finalResponse += it->first + ": " + it->second + "\r\n";
     finalResponse += "\r\n" + response_body;
     send(_clientFd, finalResponse.c_str(), finalResponse.size(), MSG_NOSIGNAL);
-    std::cout << "[Response] Sent response: " << finalResponse << std::endl;
 }
 
 void HttpResponse::set_directory_autoindex( const std::string& autoIndexContent){
@@ -378,6 +377,20 @@ void HttpResponse::generateResponse(const HttpRequest& req, RouteResult& routeRe
         }
     }
 
+    if (routeResult.location.is_Redirect)
+    {
+        std::cout << "Redirecting to: " << routeResult.location.returnPath << " with code: " << routeResult.location.returnCode << std::endl;
+        status_code = routeResult.location.returnCode;
+        setStatusLine();
+        content_length = "0";
+        response_headers["Location"] = routeResult.location.returnPath;
+        response_headers["Conection"] = "close";
+        response_headers["Content-Length"] = content_length;
+        response_headers["Server"] = "webserv";
+        write_response();
+        return;
+    }
+
     if (check_favIco(routeResult))
         return;
     check_error(req, routeResult);
@@ -420,11 +433,6 @@ void HttpResponse::generateResponse(const HttpRequest& req, RouteResult& routeRe
         }
         else
         {
-            // Issue: this branch depends on routeResult.serverRoot and _clientFd,
-            // but _clientFd is only assigned in the success path above and
-            // serverRoot can be wrong or empty depending on routing. When that
-            // happens, set_body() reads the wrong file path and the browser gets
-            // no real error page content back.
             std::string errorPagePath = routeResult.errorPages[status_code];
             std::string error_final_path = routeResult.serverRoot + errorPagePath;
             setStatusLine();

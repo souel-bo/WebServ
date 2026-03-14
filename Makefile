@@ -1,5 +1,5 @@
 NAME        = webserv
-CC          = c++
+CC          = c++ -fsanitize=address
 FLAGS       = -Wall -Wextra -Werror -std=c++98
 INCLUDES    = -I includes/
 SRCS        = $(wildcard srcs/*.cpp)

@@ -19,6 +19,17 @@ int main(int argc, char **argv)
         parser.parse(argv[1]);
         std::vector<ServerConfig> servers = parser.getServers();
         std::cout << "Successfully parsed config file!" << std::endl;
+        for (size_t i = 0; i < servers.size(); ++i)
+        {
+            for (size_t j = 0; j < servers[i].locations.size(); ++j)
+            {
+                if (!servers[i].locations[j].returnPath.empty())
+                    std::cout << "Server " << servers[i].port
+                              << " | location " << servers[i].locations[j].path
+                              << " -> " << servers[i].locations[j].returnCode
+                              << " " << servers[i].locations[j].returnPath << std::endl;
+            }
+        }
         std::cout << "Found " << servers.size() << " servers." << std::endl;
         if (!servers.empty())
         {

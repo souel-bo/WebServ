@@ -84,6 +84,7 @@ void Event::run(SocketManager& manager, EpollManager& epollManager) {
                         size_t index = clientServerIndex[fd];
                         RouteResult result = routeResult.resolve(requests[fd],*manager.getSockets()[index]->getServer());
                         AutoIndex autoIndex;
+                        std::cout << "return Redirect: " << result.location.returnPath << std::endl;
                         std::string autoIndexContent = autoIndex.generate(result.finalPath, requests[fd].getPath());
                         HttpResponse response;
                         response.generateResponse(requests[fd], result, fd, autoIndexContent);
