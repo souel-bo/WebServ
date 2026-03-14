@@ -24,6 +24,20 @@ static void addHeaderToRawResponse(std::string& rawResponse, const std::string& 
     rawResponse.insert(headerEnd, "\r\n" + key + ": " + value);
 }
 
+static int extractStatusCodeFromRawResponse(const std::string& rawResponse)
+{
+    size_t firstSpace = rawResponse.find(' ');
+    if (firstSpace == std::string::npos || firstSpace + 4 > rawResponse.size())
+        return 0;
+    std::string codeText = rawResponse.substr(firstSpace + 1, 3);
+    std::stringstream ss(codeText);
+    int code = 0;
+    ss >> code;
+    if (!ss || code < 100 || code > 599)
+        return 0;
+    return code;
+}
+
 LargeFileTransfer::LargeFileTransfer() : fileFd(-1), headerSent(0), bufferLen(0), bufferSent(0), eof(false) {}
 
 #include <cerrno>
@@ -109,10 +123,12 @@ int HttpResponse::check_status_fourhundred(const HttpRequest& req, const RouteRe
     if (!routeResult.isAllowed)
     {
         errorOccurred = true;
+        std::cout << "hna 5" << std::endl;
         return 405;
     }
     if (routeResult.isDirectory && req.getMethod() == "DELETE")
     {
+        std::cout << "hna 4" << std::endl;
         errorOccurred = true;
         return 403;
     }
@@ -125,16 +141,25 @@ int HttpResponse::check_status_fourhundred(const HttpRequest& req, const RouteRe
                 routeResult.finalPath.find(".php") != std::string::npos) 
             {
                 errorOccurred = true;
+
+                std::cout << "hna 3" << std::endl;
                 return 404;
             }
         }
+        if (!routeResult.isAllowed)
+        {
+            std::cout << "hna 2" << std::endl;
+            errorOccurred = true;
+            return 405;
+        }
         else 
         {
-            if (access(routeResult.finalPath.c_str(), R_OK) != 0) 
-            {
-                errorOccurred = true;
-                return 403;
-            }
+            // if (access(routeResult.finalPath.c_str(), R_OK) != 0) 
+            // {
+            //     std::cout << "hna 1" << std::endl;
+            //     errorOccurred = true;
+            //     return 403;
+            // }
         }
     }
     
@@ -155,6 +180,29 @@ void HttpResponse::generate_status_code(const HttpRequest& req, const RouteResul
 void HttpResponse::check_error(const HttpRequest& req, const RouteResult& routeResult)
 {
     generate_status_code(req, routeResult);
+}
+
+void HttpResponse::sendErrorPage(const RouteResult& routeResult, int code)
+{
+    status_code = code;
+    setStatusLine();
+    std::map<int, std::string>::const_iterator it = routeResult.errorPages.find(code);
+    if (it != routeResult.errorPages.end())
+    {
+        std::string errorFinalPath = routeResult.serverRoot + it->second;
+        set_body(errorFinalPath);
+        setResponseHeaders(errorFinalPath);
+    }
+    else
+    {
+        response_body.clear();
+        content_length = "0";
+        response_headers["Content-Type"] = "text/plain";
+        response_headers["Content-Length"] = content_length;
+        response_headers["Connection"] = "close";
+        response_headers["Server"] = "webserv";
+    }
+    write_response();
 }
 
 void HttpResponse::setStatusLine()
@@ -182,11 +230,17 @@ void HttpResponse::setStatusLine()
         case 405:
             status_line = "HTTP/1.1 405 Method Not Allowed\r\n";
             break;
+        case 413:
+            status_line = "HTTP/1.1 413 Payload Too Large\r\n";
+            break;
         case 500:
             status_line = "HTTP/1.1 500 Internal Server Error\r\n";
             break;
         case 501:
             status_line = "HTTP/1.1 501 Not Implemented\r\n";
+            break;
+        case 502:
+            status_line = "HTTP/1.1 502 Bad Gateway\r\n";
             break;
         case 503:
             status_line = "HTTP/1.1 503 Service Unavailable\r\n";
@@ -432,6 +486,12 @@ void HttpResponse::generateResponse(const HttpRequest& req, RouteResult& routeRe
         {
             std::cout << "[Response] Handling POST request for: " << routeResult.finalPath << std::endl;
             std::string postResponse = handlePost(req, routeResult);
+            int postStatus = extractStatusCodeFromRawResponse(postResponse);
+            if (postStatus >= 400)
+            {
+                sendErrorPage(routeResult, postStatus);
+                return;
+            }
             if (createdNewSession)
                 addHeaderToRawResponse(postResponse, "Set-Cookie", "session_id=" + sessionId + "; Path=/");
             send(_clientFd, postResponse.c_str(), postResponse.size(), MSG_NOSIGNAL);
@@ -439,6 +499,12 @@ void HttpResponse::generateResponse(const HttpRequest& req, RouteResult& routeRe
         else if (req.getMethod() == "DELETE")
         {
             std::string deleteResponse = handleDelete(req, routeResult);
+            int deleteStatus = extractStatusCodeFromRawResponse(deleteResponse);
+            if (deleteStatus >= 400)
+            {
+                sendErrorPage(routeResult, deleteStatus);
+                return;
+            }
             if (createdNewSession)
                 addHeaderToRawResponse(deleteResponse, "Set-Cookie", "session_id=" + sessionId + "; Path=/");
             send(_clientFd, deleteResponse.c_str(), deleteResponse.size(), MSG_NOSIGNAL);
@@ -446,12 +512,7 @@ void HttpResponse::generateResponse(const HttpRequest& req, RouteResult& routeRe
         }
         else
         {
-            std::string errorPagePath = routeResult.errorPages[status_code];
-            std::string error_final_path = routeResult.serverRoot + errorPagePath;
-            setStatusLine();
-            set_body(error_final_path);
-            setResponseHeaders(error_final_path);
-            write_response();
+            sendErrorPage(routeResult, status_code);
             return;
         }
 }
@@ -522,10 +583,6 @@ std::string HttpResponse::handleDelete(const HttpRequest& req, const RouteResult
 
 std::string HttpResponse::handlePost(const HttpRequest& req, const RouteResult& route)
 {
-    if (!route.isAllowed)
-    {
-        return "HTTP/1.1 405 Method Not Allowed\r\nContent-Length: 0\r\nConnection: keep-alive\r\n\r\n";
-    }
     if (req.getBodyFilename().empty())
     {
         return "HTTP/1.1 400 Bad Request\r\nContent-Length: 0\r\nConnection: keep-alive\r\n\r\n";
@@ -686,9 +743,7 @@ void HttpResponse::handleCgi(const HttpRequest& req, const RouteResult& routeRes
         interpreter = "/usr/bin/php-cgi";
     else
     {
-        status_code = 500;
-        setStatusLine();
-        write_response();
+        sendErrorPage(routeResult, 500);
         return;
     }
     CgiHandler cgi(interpreter, routeResult.finalPath);
@@ -696,8 +751,7 @@ void HttpResponse::handleCgi(const HttpRequest& req, const RouteResult& routeRes
     if (rawCgiOutput.find("502 Bad Gateway") != std::string::npos || 
         rawCgiOutput.find("500 Internal Server Error") != std::string::npos) 
     {
-        std::string errorResponse = "HTTP/1.1 502 Bad Gateway\r\nContent-Length: 0\r\nConnection: close\r\n\r\n";
-        send(_clientFd, errorResponse.c_str(), errorResponse.length(), MSG_NOSIGNAL);
+        sendErrorPage(routeResult, 502);
         return;
     }
     size_t headerEnd = rawCgiOutput.find("\r\n\r\n");
