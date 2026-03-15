@@ -123,19 +123,15 @@ int HttpResponse::check_status_fourhundred(const HttpRequest& req, const RouteRe
     if (req.getErrorCode() != 0)
     {
         errorOccurred = true;
-        std::cout << "hna 6 (Bad Request from Parser)" << std::endl;
         return req.getErrorCode(); 
     }
     if (!routeResult.isAllowed)
     {
         errorOccurred = true;
-        std::cout << "hna 5" << std::endl;
         return 405;
     }
     if (routeResult.isDirectory && req.getMethod() == "DELETE")
     {
-        std::cout << "hna 4" << std::endl;
-        std::cout << "aji tchouf zebi kikber" << std::endl;
         errorOccurred = true;
         return 403;
     }
@@ -147,7 +143,6 @@ int HttpResponse::check_status_fourhundred(const HttpRequest& req, const RouteRe
                 routeResult.finalPath.find(".py") != std::string::npos || routeResult.finalPath.find(".php") != std::string::npos || routeResult.finalPath.find(".sh") != std::string::npos) 
             {
                 errorOccurred = true;
-                std::cout << "hna 3" << std::endl;
                 return 404;
             }
         }
@@ -155,7 +150,6 @@ int HttpResponse::check_status_fourhundred(const HttpRequest& req, const RouteRe
         {
             if (access(routeResult.finalPath.c_str(), R_OK) != 0) 
             {
-                 std::cout << "hna 1" << std::endl;
                  errorOccurred = true;
                  return 403;
             }
@@ -326,7 +320,6 @@ void HttpResponse::write_response()
         finalResponse += it->first + ": " + it->second + "\r\n";
     finalResponse += "\r\n" + response_body;
     send(_clientFd, finalResponse.c_str(), finalResponse.size(), MSG_NOSIGNAL);
-    std::cout << finalResponse << std::endl;
 }
 
 void HttpResponse::set_directory_autoindex( const std::string& autoIndexContent){
@@ -346,26 +339,21 @@ void HttpResponse::send_small_files(const RouteResult& routeResult, const std::s
 {
     if (routeResult.isDirectory && routeResult.location.autoindex && access(routeResult.finalPath.c_str(), F_OK) == 0)
     {
-        std::cout << "Serving autoindex for directory: " << routeResult.finalPath << std::endl;
         set_directory_autoindex(autoIndexContent);
     }
     else if (routeResult.isDirectory && !routeResult.location.autoindex)
     {
-        std::cout << "Directory listing denied for: " << routeResult.finalPath << std::endl;
         sendErrorPage(routeResult, 403);
         return;
     }
     else if (routeResult.isDirectory && access(routeResult.finalPath.c_str(), F_OK) != 0)
     {
-        std::cout << "Directory not found: " << routeResult.finalPath << std::endl;
         sendErrorPage(routeResult, 404);
         return;
     }
     else
     {
-        std::cout << "Serving file: " << routeResult.finalPath << " (" << fileSize << " bytes)" << std::endl;
         set_body(routeResult.finalPath);
-        std::cout << "content length: " << content_length << std::endl;
         setResponseHeaders(routeResult.finalPath);
         write_response();
     }
@@ -385,7 +373,6 @@ int HttpResponse::check_favIco(const RouteResult& routeResult)
 
 void HttpResponse::send_large_file(const RouteResult& routeResult)
 {
-    std::cout << "[Response] Sending large file: " << routeResult.finalPath << " (" << fileSize << " bytes)" << std::endl;
     int fd = open(routeResult.finalPath.c_str(), O_RDONLY);
     if (fd == -1)
         return;
@@ -395,7 +382,6 @@ void HttpResponse::send_large_file(const RouteResult& routeResult)
     for (std::map<std::string, std::string>::const_iterator it = response_headers.begin(); it != response_headers.end(); ++it)
         headerResponse += it->first + ": " + it->second + "\r\n";
     headerResponse += "\r\n";
-
     LargeFileTransfer transfer;
     transfer.fileFd = fd;
     transfer.header = headerResponse;
@@ -405,7 +391,6 @@ void HttpResponse::send_large_file(const RouteResult& routeResult)
 
 void HttpResponse::generateResponse(const HttpRequest& req, RouteResult& routeResult, int clientFd, const std::string& autoIndexContent)
 {
-    std::cout << "lah lah rzaq lah" << std::endl;
     _clientFd = clientFd;
     response_headers.clear();
     response_body.clear();
@@ -463,7 +448,6 @@ void HttpResponse::generateResponse(const HttpRequest& req, RouteResult& routeRe
 
     if (routeResult.location.is_Redirect)
     {
-        std::cout << "Redirecting to: " << routeResult.location.returnPath << " with code: " << routeResult.location.returnCode << std::endl;
         status_code = routeResult.location.returnCode;
         setStatusLine();
         content_length = "0";
@@ -492,7 +476,6 @@ void HttpResponse::generateResponse(const HttpRequest& req, RouteResult& routeRe
             if (fileSize < 1024 *1024)
                 send_small_files(routeResult, autoIndexContent);
             else {
-                std::cout << "[Response] Large file detected (" << fileSize << " bytes), streaming with send() chunks." << std::endl;
                 std::ostringstream oss;
                 oss << fileSize;
                 content_length = oss.str();
@@ -501,7 +484,6 @@ void HttpResponse::generateResponse(const HttpRequest& req, RouteResult& routeRe
         }
         else if (req.getMethod() == "POST")
         {
-            std::cout << "[Response] Handling POST request for: " << routeResult.finalPath << std::endl;
             std::string postResponse = handlePost(req, routeResult);
             int postStatus = extractStatusCodeFromRawResponse(postResponse);
             if (postStatus >= 400)
@@ -529,7 +511,6 @@ void HttpResponse::generateResponse(const HttpRequest& req, RouteResult& routeRe
         }
         else
         {
-            std::cout << "lah lah yal7assaniya"<< std::endl;
             sendErrorPage(routeResult, status_code);
             return;
         }
@@ -590,7 +571,6 @@ std::string HttpResponse::handleDelete(const HttpRequest& req, const RouteResult
     
     if (std::remove(route.finalPath.c_str()) == 0)
     {
-        std::cout << "[DELETE] Successfully removed: " << route.finalPath << std::endl;
         return "HTTP/1.1 204 No Content\r\nConnection: keep-alive\r\n\r\n";
     } 
     else
@@ -725,7 +705,6 @@ std::string HttpResponse::handlePost(const HttpRequest& req, const RouteResult& 
         outFile.close();
         inFile.close();
         std::remove(req.getBodyFilename().c_str());
-        std::cout << "[MULTIPART] Saved: " << savePath << " (" << dataLength << " bytes)" << std::endl;
         return "HTTP/1.1 201 Created\r\nContent-Length: 0\r\nConnection: keep-alive\r\n\r\n";
     }
     std::string savePath;
@@ -743,7 +722,6 @@ std::string HttpResponse::handlePost(const HttpRequest& req, const RouteResult& 
     }
     if (std::rename(req.getBodyFilename().c_str(), savePath.c_str()) == 0)
     {
-        std::cout << "[RAW POST] Moved to: " << savePath << " (" << fileStat.st_size << " bytes)" << std::endl;
         return "HTTP/1.1 201 Created\r\nContent-Length: 0\r\nConnection: keep-alive\r\n\r\n";
     }
     else

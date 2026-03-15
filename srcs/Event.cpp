@@ -74,17 +74,11 @@ void Event::run(SocketManager& manager, EpollManager& epollManager) {
                     requests[fd].parse(rawData);
                     if (requests[fd].getState() == Request_Finished)
                     {
-                        std::cout << "Successfully parsed request: "
-                                  << requests[fd].getMethod() << " "
-                                  << requests[fd].getPath() << " "
-                                  << requests[fd].getBodyFilename() << " "
-                                  << requests[fd].getVersion()
-                                  << std::endl;
+                        std::cout << "Successfully parsed request For : " << requests[fd].getMethod() << " " << requests[fd].getVersion() << " " << requests[fd].getPath() << std::endl;
                         Router routeResult;
                         size_t index = clientServerIndex[fd];
                         RouteResult result = routeResult.resolve(requests[fd],*manager.getSockets()[index]->getServer());
                         AutoIndex autoIndex;
-                        std::cout << "return Redirect: " << result.location.returnPath << std::endl;
                         std::string autoIndexContent = autoIndex.generate(result.finalPath, requests[fd].getPath());
                         HttpResponse response;
                         response.generateResponse(requests[fd], result, fd, autoIndexContent);
@@ -100,6 +94,7 @@ void Event::run(SocketManager& manager, EpollManager& epollManager) {
                             requests.erase(fd);
                             clientServerIndex.erase(fd);
                         }
+                        std::cout << "Response sent" << std::endl;
                     }
                 }
                 else
