@@ -735,56 +735,50 @@ std::string HttpResponse::handlePost(const HttpRequest& req, const RouteResult& 
 
 void HttpResponse::handleCgi(const HttpRequest& req, const RouteResult& routeResult)
 {
-    std::string interpreter;
+    std::string cgiExec;
     if (routeResult.finalPath.find(".py") != std::string::npos)
-        interpreter = "/usr/bin/python3";
+        cgiExec = "/usr/bin/python3";
     else if (routeResult.finalPath.find(".php") != std::string::npos)
-        interpreter = "/usr/bin/php-cgi";
+        cgiExec = "/usr/bin/php-cgi";
     else
     {
-        sendErrorPage(routeResult, 500);
+        std::string err = "HTTP/1.1 500 Internal Server Error\r\nContent-Length: 0\r\nConnection: close\r\n\r\n";
+        send(_clientFd, err.c_str(), err.length(), 0);
         return;
     }
-    CgiHandler cgi(interpreter, routeResult.finalPath);
+    CgiHandler cgi(cgiExec, routeResult.finalPath);
     std::string rawCgiOutput = cgi.executeCgi(req, routeResult);
-    if (rawCgiOutput.find("502 Bad Gateway") != std::string::npos || 
-        rawCgiOutput.find("500 Internal Server Error") != std::string::npos) 
+    if (rawCgiOutput.find("HTTP/1.1 50") == 0) 
     {
-        sendErrorPage(routeResult, 502);
-        return;
+        send(_clientFd, rawCgiOutput.c_str(), rawCgiOutput.length(), 0);
+        return; 
     }
+    std::string headersPart;
+    std::string bodyPart;
     size_t headerEnd = rawCgiOutput.find("\r\n\r\n");
-    if (headerEnd != std::string::npos)
-    {
-        std::string cgiHeaders = rawCgiOutput.substr(0, headerEnd);
-        response_body = rawCgiOutput.substr(headerEnd + 4);
 
-        size_t ctPos = cgiHeaders.find("Content-Type:");
-        if (ctPos == std::string::npos) ctPos = cgiHeaders.find("Content-type:"); 
-        
-        if (ctPos != std::string::npos) 
-        {
-            size_t lineEnd = cgiHeaders.find("\r\n", ctPos);
-            std::string ctLine = cgiHeaders.substr(ctPos, lineEnd - ctPos);
-            size_t colonPos = ctLine.find(":");
-            if (colonPos != std::string::npos) 
-            {
-                response_headers["Content-Type"] = ctLine.substr(colonPos + 2); 
-            }
-        }
-    }
-    else
+    if (headerEnd != std::string::npos) 
     {
-        response_body = rawCgiOutput;
-        response_headers["Content-Type"] = "text/html";
+        headersPart = rawCgiOutput.substr(0, headerEnd);
+        bodyPart = rawCgiOutput.substr(headerEnd + 4);
+    } 
+    else 
+    {
+        bodyPart = rawCgiOutput;
     }
-    status_code = 200;
-    setStatusLine();
-    std::ostringstream oss;
-    oss << response_body.size();
-    content_length = oss.str();
-    response_headers["Content-Length"] = content_length;
-    response_headers["Connection"] = "close";
-    response_headers["Server"] = "webserv";
-    write_response();
+    std::ostringstream finalResponse;
+    finalResponse << "HTTP/1.1 200 OK\r\n";
+    if (!headersPart.empty())
+    {
+        finalResponse << headersPart << "\r\n";
+    }
+    if (headersPart.find("Content-Type:") == std::string::npos)
+    {
+        finalResponse << "Content-Type: text/html\r\n";
+    }
+    finalResponse << "Content-Length: " << bodyPart.length() << "\r\n";
+    finalResponse << "\r\n"; 
+    finalResponse << bodyPart;
+    std::string responseStr = finalResponse.str();
+    send(_clientFd, responseStr.c_str(), responseStr.length(), 0);
 }
