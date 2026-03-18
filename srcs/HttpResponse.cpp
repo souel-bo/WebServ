@@ -41,6 +41,39 @@ static int extractStatusCodeFromRawResponse(const std::string& rawResponse)
     return code;
 }
 
+static std::string reasonPhraseForCode(int statusCode)
+{
+    switch (statusCode)
+    {
+        case 400: return "Bad Request";
+        case 403: return "Forbidden";
+        case 404: return "Not Found";
+        case 405: return "Method Not Allowed";
+        case 413: return "Payload Too Large";
+        case 500: return "Internal Server Error";
+        case 501: return "Not Implemented";
+        case 502: return "Bad Gateway";
+        case 503: return "Service Unavailable";
+        case 504: return "Gateway Timeout";
+        default: return "Internal Server Error";
+    }
+}
+
+static std::string buildDefaultErrorPage(int statusCode)
+{
+    std::ostringstream body;
+    body << "<!DOCTYPE html>\n"
+         << "<html lang=\"en\">\n"
+         << "<head><meta charset=\"UTF-8\"><title>" << statusCode << " " << reasonPhraseForCode(statusCode) << "</title></head>\n"
+         << "<body>\n"
+         << "<h1>" << statusCode << " " << reasonPhraseForCode(statusCode) << "</h1>\n"
+         << "<p>The server could not complete your request.</p>\n"
+         << "<hr><p>webserv</p>\n"
+         << "</body>\n"
+         << "</html>\n";
+    return body.str();
+}
+
 LargeFileTransfer::LargeFileTransfer() : fileFd(-1), headerSent(0), bufferLen(0), bufferSent(0), eof(false) {}
 
 #include <cerrno>
@@ -182,18 +215,25 @@ void HttpResponse::sendErrorPage(const RouteResult& routeResult, int code)
 {
     status_code = code;
     setStatusLine();
+    bool servedCustomFile = false;
     std::map<int, std::string>::const_iterator it = routeResult.errorPages.find(code);
     if (it != routeResult.errorPages.end())
     {
         std::string errorFinalPath = routeResult.serverRoot + it->second;
-        set_body(errorFinalPath);
-        setResponseHeaders(errorFinalPath);
+        if (access(errorFinalPath.c_str(), R_OK) == 0)
+        {
+            set_body(errorFinalPath);
+            setResponseHeaders(errorFinalPath);
+            servedCustomFile = true;
+        }
     }
-    else
+    if (!servedCustomFile)
     {
-        response_body.clear();
-        content_length = "0";
-        response_headers["Content-Type"] = "text/plain";
+        response_body = buildDefaultErrorPage(code);
+        std::ostringstream oss;
+        oss << response_body.size();
+        content_length = oss.str();
+        response_headers["Content-Type"] = "text/html";
         response_headers["Content-Length"] = content_length;
         response_headers["Connection"] = "close";
         response_headers["Server"] = "webserv";

@@ -21,6 +21,21 @@ static std::string reasonPhrase(int statusCode)
     }
 }
 
+static std::string buildDefaultErrorBody(int statusCode)
+{
+    std::ostringstream body;
+    body << "<!DOCTYPE html>\n"
+         << "<html lang=\"en\">\n"
+         << "<head><meta charset=\"UTF-8\"><title>" << statusCode << " " << reasonPhrase(statusCode) << "</title></head>\n"
+         << "<body>\n"
+         << "<h1>" << statusCode << " " << reasonPhrase(statusCode) << "</h1>\n"
+         << "<p>The upstream CGI did not respond correctly.</p>\n"
+         << "<hr><p>webserv</p>\n"
+         << "</body>\n"
+         << "</html>\n";
+    return body.str();
+}
+
 
 Event::Event() {}
 
@@ -146,15 +161,14 @@ void Event::sendCgiResponse(const CgiTask& task, int statusCode)
                 body = bodyStream.str();
             }
         }
+        if (body.empty())
+            body = buildDefaultErrorBody(statusCode);
 
         std::ostringstream response;
         response << "HTTP/1.1 " << statusCode << " " << reasonPhrase(statusCode) << "\r\n";
         response << "Server: webserv\r\n";
         response << "Connection: close\r\n";
-        if (!body.empty())
-            response << "Content-Type: text/html\r\n";
-        else
-            response << "Content-Type: text/plain\r\n";
+        response << "Content-Type: text/html\r\n";
         response << "Content-Length: " << body.size() << "\r\n\r\n";
         response << body;
 
