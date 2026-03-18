@@ -13,6 +13,7 @@
 #include <cstdio>
 #include <sys/wait.h>
 #include <signal.h>
+#include "Router.hpp"
 
 struct CgiTask
 {
@@ -20,6 +21,7 @@ struct CgiTask
     int clientFd;
     std::string outFilename;
     time_t startTime;
+    RouteResult routeResult;
 };
 
 class Event{
@@ -29,7 +31,7 @@ class Event{
         std::map<int, size_t> clientServerIndex;
         std::vector<CgiTask> cgiTasks;
         void processCgiTasks(EpollManager& epollManager);
-        void sendCgiResponse(int clientFd, const std::string& outFilename, int statusCode, EpollManager& epollManager);
+        void sendCgiResponse(const CgiTask& task, int statusCode);
     public:
         Event();
         ~Event();

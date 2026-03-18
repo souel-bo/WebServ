@@ -241,6 +241,9 @@ void HttpResponse::setStatusLine()
         case 503:
             status_line = "HTTP/1.1 503 Service Unavailable\r\n";
             break;
+        case 504:
+            status_line = "HTTP/1.1 504 Gateway Timeout\r\n";
+            break;
         default:
             status_line = "HTTP/1.1 500 Internal Server Error\r\n";
             break;
