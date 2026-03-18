@@ -32,7 +32,7 @@ class HttpRequest
         bool                                hasCookies;
 
         bool    parseRequestLine(std::string &line);
-        void    parseHeaders(std::string &line);
+        bool    parseHeaders(std::string &line);
         void    parseBody();
         void    processChunk(std::string &storage);
         void    openTempFile(); 
@@ -50,7 +50,7 @@ class HttpRequest
         const std::map<std::string, std::string>& getHeaders() const;
         RequestParseState                   getState() const;
         int                                 getErrorCode() const;
-        bool                                   getHasCookies() const;
+        bool                                getHasCookies() const;
 };
 
 #endif

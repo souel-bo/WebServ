@@ -109,7 +109,12 @@ void HttpRequest::parse(std::string &rawBuffer)
                 } 
                 else 
                 {
-                    parseHeaders(line);
+                    if (!parseHeaders(line)) 
+                    {
+                        errorCode = 400;
+                        state = Request_Finished;
+                        break;
+                    }
                 }
             }
         } 
@@ -134,47 +139,76 @@ void HttpRequest::parse(std::string &rawBuffer)
 bool HttpRequest::parseRequestLine(std::string &line)
 {
     std::stringstream ss(line);
-    
+    std::string extraGarbage;
     if (!(ss >> method >> path >> version))
     {
         return false;
     }
-    
+    if (ss >> extraGarbage)
+    {
+        return false;
+    }
     if (method != "GET" && method != "POST" && method != "DELETE")
     {
         return false;
     }
     
-    return !path.empty() && !version.empty();
+    if (version != "HTTP/1.1")
+    {
+        return false;
+    }
+    if (path.empty() || path[0] != '/')
+    {
+        return false;
+    }
+    
+    return true;
 }
 
-void HttpRequest::parseHeaders(std::string &line)
+bool HttpRequest::parseHeaders(std::string &line)
 {
     size_t colon = line.find(":");
-    
-    if (colon != std::string::npos)
+    if (colon == std::string::npos || colon == 0)
     {
-        std::string key = line.substr(0, colon);
-        bool capitalizeNext = true;
-        for (size_t i = 0; i < key.length(); ++i)
+        return false;
+    }
+    if (line[colon - 1] == ' ' || line[colon - 1] == '\t')
+    {
+        return false;
+    }
+
+    std::string key = line.substr(0, colon);
+    bool capitalizeNext = true;
+    for (size_t i = 0; i < key.length(); ++i)
+    {
+        if (key[i] == ' ' || key[i] == '\t')
         {
-            if (capitalizeNext && key[i] >= 'a' && key[i] <= 'z') key[i] -= 32; 
-            else if (!capitalizeNext && key[i] >= 'A' && key[i] <= 'Z') key[i] += 32; 
-            capitalizeNext = (key[i] == '-');
+            return false;
         }
-        std::string value = line.substr(colon + 1);
-        size_t first = value.find_first_not_of(" ");
-        size_t last = value.find_last_not_of(" ");
         
-        if (first != std::string::npos)
+        if (capitalizeNext && key[i] >= 'a' && key[i] <= 'z') key[i] -= 32; 
+        else if (!capitalizeNext && key[i] >= 'A' && key[i] <= 'Z') key[i] += 32; 
+        capitalizeNext = (key[i] == '-');
+    }
+    
+    std::string value = line.substr(colon + 1);
+    size_t first = value.find_first_not_of(" \t");
+    size_t last = value.find_last_not_of(" \t\r\n");
+    
+    if (first != std::string::npos && last != std::string::npos && first <= last)
+    {
+        headers[key] = value.substr(first, (last - first + 1));
+        if (key == "Cookie")
         {
-            headers[key] = value.substr(first, (last - first + 1));
-            if (key == "Cookie")
-            {
-                hasCookies = true;
-            }
+            hasCookies = true;
         }
     }
+    else 
+    {
+        headers[key] = "";
+    }
+    
+    return true;
 }
 
 void HttpRequest::parseBody()
