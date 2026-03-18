@@ -68,8 +68,9 @@ void HttpRequest::parse(std::string &rawBuffer)
                     state = Request_Headers;
                 }
                 else 
-                { 
-                    errorCode = 400; 
+                {
+                    if (errorCode == 0) 
+                        errorCode = 400;
                     state = Request_Finished; 
                 }
             } 
@@ -111,7 +112,8 @@ void HttpRequest::parse(std::string &rawBuffer)
                 {
                     if (!parseHeaders(line)) 
                     {
-                        errorCode = 400;
+                        if (errorCode == 0) 
+                            errorCode = 400;
                         state = Request_Finished;
                         break;
                     }
