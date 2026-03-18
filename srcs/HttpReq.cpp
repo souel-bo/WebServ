@@ -142,26 +142,29 @@ bool HttpRequest::parseRequestLine(std::string &line)
     std::string extraGarbage;
     if (!(ss >> method >> path >> version))
     {
+        errorCode = 400;
         return false;
     }
     if (ss >> extraGarbage)
     {
+        errorCode = 400;
         return false;
     }
     if (method != "GET" && method != "POST" && method != "DELETE")
     {
+        errorCode = 501;
         return false;
     }
-    
     if (version != "HTTP/1.1")
     {
+        errorCode = 505; 
         return false;
     }
     if (path.empty() || path[0] != '/')
     {
+        errorCode = 400;
         return false;
     }
-    
     return true;
 }
 
