@@ -1,4 +1,5 @@
 #include "ManageServers.hpp"
+#include <iostream>
 
 SocketManager::~SocketManager() {
     for (size_t i = 0; i < _listeningSockets.size(); ++i) {
@@ -7,6 +8,10 @@ SocketManager::~SocketManager() {
     }
     _listeningSockets.clear();
     closeAllSockets();
+}
+
+std::string ListeningSocket::get_error(){
+    return error;
 }
 
 void SocketManager::addSocket( ListeningSocket *sock) {
@@ -28,12 +33,18 @@ std::vector<int> SocketManager::getFds() const {
 void SocketManager::generateListeningSockets(const std::vector<ServerConfig>& servers) {
     for (size_t i = 0; i < servers.size(); ++i) {
         ListeningSocket *sock = new ListeningSocket(const_cast<ServerConfig*>(&servers[i]));
-        sock->createSocket();
-        sock->setReuseAddr();
-        sock->bindSocket();
-        sock->startListening(1024);
-        sock->setNonBlocking();
-        addSocket(sock);
+        try {
+            sock->createSocket();
+            sock->setReuseAddr();
+            sock->bindSocket();
+            sock->startListening(1024);
+            sock->setNonBlocking();
+            addSocket(sock);
+        }
+        catch(ListeningSocket &e){
+            std::cerr << e.get_error()<< std::endl;
+            delete sock;
+        }
     }
 }
 

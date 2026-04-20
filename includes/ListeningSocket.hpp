@@ -13,8 +13,10 @@ class ListeningSocket {
 private:
     int _fd;
     ServerConfig* _server;
+    std::string error;
 
 public:
+    ListeningSocket();
     ListeningSocket(ServerConfig* server);
     ~ListeningSocket();
     void createSocket();
@@ -25,6 +27,7 @@ public:
     int getFd() const;
     int getPort() const ;
     ServerConfig* getServer() const;
+    std::string get_error();
 };
 
 
