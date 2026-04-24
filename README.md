@@ -26,12 +26,13 @@ This project provides practical experience with system programming and helps dev
 
 - C++98 compliant implementation
 - Non-blocking sockets
-- `poll()` for multiplexing
+- `epoll(epoll_create/epoll_ctl/epoll_wait)` for multiplexing
 - HTTP/1.1 request handling
 - GET, POST, DELETE methods
 - Static file serving
 - File upload support
-- CGI execution (Python / PHP)
+- Large file support
+- CGI execution (Python/PHP/BASH/...)
 - Custom error pages
 - Multiple server blocks
 - Route configuration
@@ -48,6 +49,7 @@ This project provides practical experience with system programming and helps dev
 Clone the repository and compile the project using `make`.
 
 ```bash
-git clone <repository_url>
+git clone <https://github.com/ACH4Q/WebServ.git>
 cd webserv
 make
+./webserv config/websrv.conf
